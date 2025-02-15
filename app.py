@@ -12,36 +12,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import plotly.express as px
 import re
-import os
-from huggingface_hub import login
-
-# Hugging Face Login
-def huggingface_login():
-    try:
-        # Check if Hugging Face token is already set
-        if "HUGGINGFACE_TOKEN" not in os.environ:
-            # Prompt user to enter Hugging Face token
-            st.sidebar.subheader("Hugging Face Login")
-            hf_token = st.sidebar.text_input("Enter your Hugging Face token (get it from https://huggingface.co/settings/tokens):", type="password")
-            if hf_token:
-                # Log in to Hugging Face
-                login(token=hf_token)
-                st.sidebar.success("Logged in to Hugging Face successfully!")
-                os.environ["HUGGINGFACE_TOKEN"] = hf_token
-            else:
-                st.sidebar.warning("Please enter your Hugging Face token to access models.")
-    except Exception as e:
-        st.sidebar.error(f"Failed to log in to Hugging Face: {e}")
-
-# Call Hugging Face login function
-huggingface_login()
-
-# Load DeepSeek model (replace with the actual model name)
-if "HUGGINGFACE_TOKEN" in os.environ:
-    from transformers import pipeline
-    nlp = pipeline("text-generation", model="deepseek-ai/deepseek-math-7b")  # Example model
-else:
-    nlp = None
+import ollama  # Ollama Python package
 
 # Page configuration
 st.set_page_config(page_title="Data Analysis Dashboard", layout="wide")
@@ -156,61 +127,58 @@ if uploaded_file is not None:
                 prediction = model.predict(input_df)
                 st.write(f"Predicted {target}: {prediction[0]}")
 
-    # Prompt Section with DeepSeek Model
+    # Prompt Section with Ollama
     st.subheader("🔍 Ask Questions About Your Data")
     user_prompt = st.text_input("Enter your question (e.g., 'What fraction of households have only one two-wheeler?')")
 
     if user_prompt:
         try:
-            if nlp:
-                # Use DeepSeek model to interpret the question
-                response = nlp(user_prompt)
-                st.write("DeepSeek Model Response:")
-                st.write(response)
+            # Use Ollama to generate a response
+            response = ollama.generate(model="mistral", prompt=user_prompt)  # Replace "mistral" with your preferred model
+            st.write("Ollama Response:")
+            st.write(response["response"])
 
-                # Extract intent and entities from the response
-                if "fraction" in user_prompt.lower():
-                    # Use regex to extract the condition (e.g., "only one two-wheeler")
-                    match = re.search(r"only one (\w+)", user_prompt.lower())
-                    if match:
-                        column_name = match.group(1)  # Extract column name (e.g., "two-wheeler")
-                        if column_name in df.columns:
-                            # Calculate the fraction of households with only one two-wheeler
-                            fraction = (df[column_name] == 1).mean()
-                            st.write(f"The fraction of households with only one {column_name} is: {fraction:.2f}")
-                        else:
-                            st.error(f"Column '{column_name}' not found in the dataset.")
+            # Extract intent and entities from the response
+            if "fraction" in user_prompt.lower():
+                # Use regex to extract the condition (e.g., "only one two-wheeler")
+                match = re.search(r"only one (\w+)", user_prompt.lower())
+                if match:
+                    column_name = match.group(1)  # Extract column name (e.g., "two-wheeler")
+                    if column_name in df.columns:
+                        # Calculate the fraction of households with only one two-wheeler
+                        fraction = (df[column_name] == 1).mean()
+                        st.write(f"The fraction of households with only one {column_name} is: {fraction:.2f}")
                     else:
-                        st.error("Could not parse the condition. Please specify a valid condition.")
-
-                elif "average" in user_prompt.lower():
-                    column = user_prompt.split()[-1]  # Extract column name
-                    if column in df.columns:
-                        avg_value = df[column].mean()
-                        st.write(f"The average of {column} is: {avg_value}")
-                    else:
-                        st.error(f"Column '{column}' not found in the dataset.")
-
-                elif "correlation" in user_prompt.lower():
-                    cols = [word for word in user_prompt.split() if word in df.columns]
-                    if len(cols) == 2:
-                        corr_value = df[cols[0]].corr(df[cols[1]])
-                        st.write(f"The correlation between {cols[0]} and {cols[1]} is: {corr_value}")
-                    else:
-                        st.error("Please specify two valid columns for correlation.")
-
-                elif "distribution" in user_prompt.lower():
-                    column = user_prompt.split()[-1]
-                    if column in df.columns:
-                        fig = px.histogram(df, x=column, title=f"Distribution of {column}")
-                        st.plotly_chart(fig)
-                    else:
-                        st.error(f"Column '{column}' not found in the dataset.")
-
+                        st.error(f"Column '{column_name}' not found in the dataset.")
                 else:
-                    st.warning("Sorry, I don't understand that question. Try asking about fractions, averages, correlations, or distributions.")
+                    st.error("Could not parse the condition. Please specify a valid condition.")
+
+            elif "average" in user_prompt.lower():
+                column = user_prompt.split()[-1]  # Extract column name
+                if column in df.columns:
+                    avg_value = df[column].mean()
+                    st.write(f"The average of {column} is: {avg_value}")
+                else:
+                    st.error(f"Column '{column}' not found in the dataset.")
+
+            elif "correlation" in user_prompt.lower():
+                cols = [word for word in user_prompt.split() if word in df.columns]
+                if len(cols) == 2:
+                    corr_value = df[cols[0]].corr(df[cols[1]])
+                    st.write(f"The correlation between {cols[0]} and {cols[1]} is: {corr_value}")
+                else:
+                    st.error("Please specify two valid columns for correlation.")
+
+            elif "distribution" in user_prompt.lower():
+                column = user_prompt.split()[-1]
+                if column in df.columns:
+                    fig = px.histogram(df, x=column, title=f"Distribution of {column}")
+                    st.plotly_chart(fig)
+                else:
+                    st.error(f"Column '{column}' not found in the dataset.")
+
             else:
-                st.error("Hugging Face model is not loaded. Please log in with your Hugging Face token.")
+                st.warning("Sorry, I don't understand that question. Try asking about fractions, averages, correlations, or distributions.")
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
