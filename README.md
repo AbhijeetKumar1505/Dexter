@@ -1,85 +1,74 @@
-# Data Cleaning Tool
+# Interactive Data Analysis Dashboard
 
-A Python-based data cleaning tool built with Streamlit that allows users to easily clean and prepare their data for analysis.
+An interactive data analysis dashboard built with Streamlit that allows users to upload CSV files, perform data analysis, create visualizations, train machine learning models, and ask questions about their data using DeepSeek AI.
 
 ## Features
 
-- **Data Upload**: Support for CSV and Excel files
-- **Data Exploration**: View statistics, preview data, and visualize distributions
-- **Data Cleaning Operations**:
-  - Remove duplicate rows
-  - Handle missing values (mean, median, mode, custom values, etc.)
-  - Remove outliers (IQR or Z-Score methods)
-  - Standardize or normalize numeric columns
-  - Rename or drop columns
-- **Cleaning History**: Track all cleaning operations applied to your data
-- **Export**: Download the cleaned data as a CSV file
+- 📊 Data visualization (scatter plots, bar charts, histograms, box plots, violin plots)
+- 📈 Statistical analysis (hypothesis testing, correlation analysis)
+- 🤖 Machine learning models (Linear Regression, Decision Trees, Random Forest)
+- 💡 AI-powered data insights using DeepSeek
+- 📝 Interactive data preprocessing options
+- 📊 Summary statistics and data exploration tools
 
-## Installation
+## Setup
 
-### Prerequisites
+1. Create and activate a virtual environment:
 
-- Python 3.8 or higher
-- pip (Python package installer)
+```bash
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
 
-### Setup
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
+```
 
-1. Clone this repository or download the source code
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-2. Create a virtual environment:
-   ```
-   python -m venv venv
-   ```
+3. Configure Secrets:
+Create a `.streamlit/secrets.toml` file in your project directory with:
+```toml
+TOGETHER_API_KEY = "your-together-ai-api-key"
+```
 
-3. Activate the virtual environment:
-   - On Windows:
-     ```
-     .\venv\Scripts\activate
-     ```
-   - On macOS/Linux:
-     ```
-     source venv/bin/activate
-     ```
+## Running the Application
 
-4. Install the required packages:
-   ```
-   pip install -r requirements.txt
-   ```
+1. Ensure your virtual environment is activated
+2. Run the Streamlit app:
+```bash
+streamlit run app.py
+```
 
 ## Usage
 
-1. Start the application:
-   ```
-   streamlit run app.py
-   ```
+1. Upload your CSV file using the sidebar
+2. Choose from various data preprocessing options
+3. Explore visualizations and statistical analyses
+4. Train and evaluate machine learning models
+5. Ask questions about your data using natural language
 
-2. Open your web browser and go to `http://localhost:8501`
+## Requirements
 
-3. Use the sidebar to upload your data file (CSV or Excel)
+- Python 3.8+
+- See requirements.txt for full list of dependencies
 
-4. Explore your data with the provided visualizations and statistics
+## Getting an API Key
 
-5. Apply cleaning operations as needed:
-   - Select an operation from the dropdown menu in the sidebar
-   - Configure the operation parameters
-   - Click the button to apply the operation
-
-6. When finished, download your cleaned data using the download button
-
-## Example Workflow
-
-1. Upload a CSV file with customer data
-2. Identify columns with missing values
-3. Fill missing values using appropriate methods (e.g., mean for numeric columns)
-4. Remove outliers from numeric columns
-5. Standardize numeric features for machine learning
-6. Rename columns to more descriptive names
-7. Download the cleaned dataset
+1. Visit [Together AI](https://together.ai)
+2. Create an account
+3. Navigate to the API section
+4. Copy your API key
+5. Add it to `.streamlit/secrets.toml`
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Feel free to open issues or submit pull requests for any improvements.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+MIT License 
