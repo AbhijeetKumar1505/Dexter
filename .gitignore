@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -68,3 +69,10 @@ coverage.xml
 
 # VS Code
 .vscode/ 
+=======
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store 
+>>>>>>> f0026a3632a426ba93494a02fb226885ba5da531
