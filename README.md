@@ -7,9 +7,21 @@ An interactive data analysis dashboard built with Streamlit that allows users to
 - 📊 Data visualization (scatter plots, bar charts, histograms, box plots, violin plots)
 - 📈 Statistical analysis (hypothesis testing, correlation analysis)
 - 🤖 Machine learning models (Linear Regression, Decision Trees, Random Forest)
+- 🧠 TensorFlow hybrid neural network models for advanced analysis
 - 💡 AI-powered data insights using DeepSeek
 - 📝 Interactive data preprocessing options
 - 📊 Summary statistics and data exploration tools
+
+## Advanced ML Models
+
+The dashboard now includes TensorFlow-based hybrid models for more accurate analysis:
+
+- **Dense Neural Networks**: Standard fully-connected neural networks
+- **Wide & Deep Networks**: Google-inspired architecture that combines memorization and generalization
+- **ResNet Architecture**: Uses residual connections for better gradient flow in deep networks
+- **Transformer-based Models**: Leverages self-attention mechanisms for improved performance on tabular data
+
+These advanced models typically outperform traditional ML approaches on complex datasets.
 
 ## Setup
 
@@ -50,11 +62,13 @@ streamlit run app.py
 2. Choose from various data preprocessing options
 3. Explore visualizations and statistical analyses
 4. Train and evaluate machine learning models
-5. Ask questions about your data using natural language
+5. Use TensorFlow hybrid models for more accurate predictions
+6. Ask questions about your data using natural language
 
 ## Requirements
 
 - Python 3.8+
+- TensorFlow 2.15+
 - See requirements.txt for full list of dependencies
 
 ## Getting an API Key

@@ -18,6 +18,10 @@ from typing import Optional
 import json
 from together import Together
 import missingno as msno
+from dexter.hybrid_models import (
+    get_hybrid_model, prepare_data_for_hybrid_models, 
+    evaluate_and_compare_models, plot_model_comparison
+)
 
 # Initialize Together AI client with API key from secrets
 together = Together(api_key=st.secrets["TOGETHER_API_KEY"])
@@ -238,6 +242,145 @@ st.set_page_config(page_title="Data Analysis Dashboard", layout="wide")
 
 # Title
 st.title("📊 Interactive Data Analysis Dashboard")
+
+# Add a section for advanced hybrid models
+def show_hybrid_models_section(df, target_column):
+    st.header("🧠 Advanced Hybrid TensorFlow Models")
+    
+    with st.expander("About Hybrid Models", expanded=False):
+        st.markdown("""
+        ### TensorFlow Hybrid Models
+        
+        This section provides access to advanced neural network architectures for more accurate analysis:
+        
+        - **Dense Neural Network**: Standard fully-connected neural network
+        - **Wide & Deep Network**: Google-inspired model that combines memorization and generalization
+        - **ResNet Architecture**: Uses residual connections to train deeper networks
+        - **Transformer-based Model**: Leverages self-attention mechanisms for tabular data
+        
+        These models often outperform traditional ML approaches, especially with complex patterns and larger datasets.
+        """)
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.subheader("Model Selection")
+        model_types = {
+            'dense': 'Dense Neural Network',
+            'wide_and_deep': 'Wide & Deep Network',
+            'resnet': 'ResNet Architecture',
+            'transformer': 'Transformer-based Model'
+        }
+        
+        selected_models = []
+        for model_key, model_name in model_types.items():
+            if st.checkbox(model_name, value=(model_key == 'wide_and_deep')):
+                selected_models.append(model_key)
+        
+        # Add baseline comparison
+        compare_with_baseline = st.checkbox("Compare with Random Forest", value=True)
+        
+        # Training parameters
+        st.subheader("Training Parameters")
+        epochs = st.slider("Training Epochs", min_value=10, max_value=200, value=50, step=10)
+        batch_size = st.slider("Batch Size", min_value=8, max_value=128, value=32, step=8)
+        test_size = st.slider("Test Set Size", min_value=0.1, max_value=0.4, value=0.2, step=0.05)
+        scale_target = st.checkbox("Scale Target Variable", value=True)
+    
+    with col2:
+        if not selected_models:
+            st.info("Please select at least one model type to proceed.")
+        else:
+            train_button = st.button("Train and Evaluate Hybrid Models")
+            
+            if train_button:
+                with st.spinner("Preparing data for training..."):
+                    # Prepare the data for hybrid models
+                    try:
+                        data_splits = prepare_data_for_hybrid_models(
+                            df, target_column, test_size=test_size, 
+                            val_size=0.1, random_state=42
+                        )
+                        
+                        # Get feature and target data
+                        X_train, y_train = data_splits['X_train'], data_splits['y_train']
+                        X_val, y_val = data_splits['X_val'], data_splits['y_val']
+                        X_test, y_test = data_splits['X_test'], data_splits['y_test']
+                        
+                        st.success(f"Data prepared successfully: {X_train.shape[0]} training samples, "
+                                  f"{X_val.shape[0]} validation samples, {X_test.shape[0]} test samples")
+                        
+                        # Train models
+                        trained_models = []
+                        progress_bar = st.progress(0)
+                        total_models = len(selected_models)
+                        
+                        for i, model_type in enumerate(selected_models):
+                            progress_text = st.empty()
+                            progress_text.text(f"Training {model_types[model_type]}...")
+                            
+                            # Instantiate model
+                            model = get_hybrid_model(model_type)
+                            
+                            # Preprocess data
+                            X_train_scaled, y_train_scaled = model.preprocess(X_train, y_train, scale_target=scale_target)
+                            X_val_scaled, y_val_scaled = model.preprocess(X_val, y_val, scale_target=scale_target)
+                            
+                            # Train model
+                            history = model.train(
+                                X_train_scaled, y_train_scaled,
+                                validation_data=(X_val_scaled, y_val_scaled),
+                                epochs=epochs,
+                                batch_size=batch_size,
+                                verbose=0
+                            )
+                            
+                            trained_models.append(model)
+                            progress_bar.progress((i + 1) / total_models)
+                        
+                        progress_bar.progress(1.0)
+                        
+                        # Prepare baseline models if requested
+                        baseline_models = {}
+                        if compare_with_baseline:
+                            progress_text = st.empty()
+                            progress_text.text("Training Random Forest baseline model...")
+                            
+                            rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+                            rf_model.fit(X_train, y_train)
+                            baseline_models['Random Forest'] = rf_model
+                        
+                        # Evaluate models
+                        with st.spinner("Evaluating models..."):
+                            results = evaluate_and_compare_models(
+                                trained_models, data_splits, baseline_models
+                            )
+                            
+                            # Display results
+                            st.subheader("Model Performance Comparison")
+                            
+                            # Create metric columns
+                            metrics_cols = st.columns(4)
+                            metrics = ['r2', 'rmse', 'mse', 'mae']
+                            metrics_names = ['R² Score', 'RMSE', 'MSE', 'MAE']
+                            
+                            # Show performance plots for each metric
+                            for i, (metric, name) in enumerate(zip(metrics, metrics_names)):
+                                with metrics_cols[i]:
+                                    st.metric(name, f"{results[trained_models[0].name][metric]:.4f}")
+                            
+                            # Show comparison plot
+                            fig = plot_model_comparison(results, metric='rmse')
+                            st.pyplot(fig)
+                            
+                            # Show training history for the best model
+                            st.subheader("Training History")
+                            best_model = min(trained_models, key=lambda m: results[m.name]['rmse'])
+                            st.pyplot(best_model.plot_history())
+                            
+                    except Exception as e:
+                        st.error(f"Error in hybrid model training: {str(e)}")
+                        st.exception(e)
 
 # Initialize session states
 if 'data' not in st.session_state:
@@ -835,6 +978,9 @@ if uploaded_file is not None:
             if st.button("Clear Chat History"):
                 st.session_state.chat_history = []
                 st.rerun()
+
+            # Add the hybrid models section
+            show_hybrid_models_section(df, target)
 
     except Exception as e:
         st.error(f"An error occurred: {e}")
