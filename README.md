@@ -1,14 +1,52 @@
-# Interactive Data Analysis Dashboard
+# 🚀 Data Intelligence Dynamo (DID)
 
-An interactive data analysis dashboard built with Streamlit that allows users to upload CSV files, perform data analysis, create visualizations, train machine learning models, and ask questions about their data using DeepSeek AI.
+Welcome to Data Intelligence Dynamo (DID) - Where Data Meets AI in Perfect Harmony! 
 
-## Features
+DID is not just another data analysis tool; it's your personal data science team in a box. Built with Streamlit and powered by Together AI, DID transforms raw data into actionable insights through an intuitive, conversation-driven interface. Whether you're a data scientist, business analyst, or just data-curious, DID makes advanced analytics accessible to everyone.
+
+## ✨ Key Features
+
+### 🎯 Data Analysis Pipeline: Your Data's Journey to Insights
+
+Imagine your data going on a magical journey through our intelligent pipeline:
+
+1. **Data Ingestion Station**
+   - Drag-and-drop your CSV/Excel files
+   - Instant data preview to ensure everything looks shipshape
+   - Smart type detection for each column
+
+2. **Data Wrangling Workshop**
+   - Interactive data cleaning with a single click
+   - Missing value imputation with intelligent defaults
+   - Outlier detection and treatment suggestions
+
+3. **Exploration Playground**
+   - One-click visualizations that adapt to your data
+   - Statistical insights that actually make sense
+   - Interactive plots that tell the story behind your numbers
+
+4. **AI-Powered Analysis**
+   - Natural language queries about your data
+   - Automated insights and pattern detection
+   - Smart visualization recommendations
+
+5. **Model Training Arena**
+   - From simple regressions to complex neural networks
+   - Automated model selection and hyperparameter tuning
+   - Performance metrics that matter
+
+6. **Deployment Launchpad**
+   - One-click model deployment
+   - API endpoint generation
+   - Shareable dashboards
+
+### 🛠️ Core Features
 
 - 📊 Data visualization (scatter plots, bar charts, histograms, box plots, violin plots)
 - 📈 Statistical analysis (hypothesis testing, correlation analysis)
 - 🤖 Machine learning models (Linear Regression, Decision Trees, Random Forest)
 - 🧠 TensorFlow hybrid neural network models for advanced analysis
-- 💡 AI-powered data insights using DeepSeek
+- 💡 AI-powered data insights 
 - 📝 Interactive data preprocessing options
 - 📊 Summary statistics and data exploration tools
 
