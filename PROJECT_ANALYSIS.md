@@ -54,12 +54,16 @@ Done
 - No model interpretability tools (SHAP, LIME)
 - No support for unsupervised learning
 
+Done
+
 ### 4. Data Preprocessing (Current: Basic)
 **Missing Features:**
 - Limited data cleaning options
 - No support for text data preprocessing
 - Missing advanced feature engineering capabilities
 - No pipeline for automated data transformation
+
+Done
 
 ### 5. Code Generation (Current: Basic)
 **Missing Features:**

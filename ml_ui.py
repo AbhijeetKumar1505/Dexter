@@ -47,38 +47,42 @@ class MLUI:
         self.task = st.sidebar.radio(
             "Select Task",
             ["Regression", "Classification"],
-            index=0
+            index=0,
+            key=f"{id(self)}_ml_task_radio"  # Unique key using object ID
         ).lower()
         
-        # Select target variable
+        # Select target variable with unique key
         target_col = st.sidebar.selectbox(
             "Select Target Variable",
             self.df.columns,
-            key="target_col"
+            key=f"{id(self)}_target_col"  # Unique key using object ID
         )
         
-        # Select features
+        # Select features with unique key
         feature_cols = st.sidebar.multiselect(
             "Select Features",
             [col for col in self.df.columns if col != target_col],
-            default=[col for col in self.numeric_cols if col != target_col]
+            default=[col for col in self.numeric_cols if col != target_col],
+            key=f"{id(self)}_feature_cols"  # Unique key using object ID
         )
         
-        # Split data
+        # Split data with unique key
         test_size = st.sidebar.slider(
             "Test Set Size",
             min_value=0.1,
             max_value=0.5,
             value=0.2,
-            step=0.05
+            step=0.05,
+            key=f"{id(self)}_test_size"  # Unique key using object ID
         )
         
-        # Random state
+        # Random state with unique key
         random_state = st.sidebar.number_input(
             "Random State",
             min_value=0,
             value=42,
-            step=1
+            step=1,
+            key=f"{id(self)}_random_state"  # Unique key using object ID
         )
         
         return target_col, feature_cols, test_size, random_state
@@ -89,16 +93,30 @@ class MLUI:
         
         col1, col2 = st.sidebar.columns(2)
         
-        create_interactions = col1.checkbox("Create Interactions", value=True)
-        create_polynomials = col1.checkbox("Create Polynomials", value=True)
+        # Add unique keys to all interactive elements
+        create_interactions = col1.checkbox(
+            "Create Interactions", 
+            value=True,
+            key=f"{id(self)}_create_interactions"
+        )
+        create_polynomials = col1.checkbox(
+            "Create Polynomials", 
+            value=True,
+            key=f"{id(self)}_create_polynomials"
+        )
         poly_degree = col2.number_input(
             "Polynomial Degree",
             min_value=1,
             max_value=5,
             value=2,
-            step=1
+            step=1,
+            key=f"{id(self)}_poly_degree"
         )
-        create_stats = col2.checkbox("Statistical Features", value=True)
+        create_stats = col2.checkbox(
+            "Statistical Features", 
+            value=True,
+            key=f"{id(self)}_create_stats"
+        )
         
         return {
             'create_interactions': create_interactions,

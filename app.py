@@ -21,6 +21,15 @@ from sklearn.preprocessing import LabelEncoder
 from typing import Dict, Any, Optional, Tuple, List
 from dotenv import load_dotenv
 
+# Import data preprocessing module
+from data_preprocessing import (
+    DataCleaner, 
+    TextPreprocessor, 
+    FeatureEngineer, 
+    create_preprocessing_pipeline,
+    get_feature_names
+)
+
 # Import ML enhancements
 from ml_ui import MLUI
 from ml_enhancements import (
@@ -550,16 +559,199 @@ def execute_code_on_df(code, df):
     except Exception as e:
         return None, str(e)
 
+def data_preprocessing_ui(df):
+    """User interface for data preprocessing"""
+    st.header("Data Preprocessing")
+    
+    # Display current data info
+    st.subheader("Dataset Overview")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Rows", df.shape[0])
+    col2.metric("Columns", df.shape[1])
+    col3.metric("Missing Values", df.isnull().sum().sum())
+    
+    # Data cleaning options
+    with st.expander("🛠️ Data Cleaning", expanded=True):
+        st.subheader("Data Cleaning")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            drop_duplicates = st.checkbox("Remove duplicate rows", value=True)
+            handle_missing = st.selectbox(
+                "Handle missing values",
+                ["drop", "mean", "median", "mode", "knn", "ffill", "bfill"],
+                index=2
+            )
+            
+        with col2:
+            outlier_method = st.selectbox(
+                "Handle outliers",
+                ["None", "zscore", "iqr"],
+                index=0
+            )
+            
+        # Identify datetime columns
+        datetime_cols = st.multiselect(
+            "Select datetime columns",
+            df.select_dtypes(include=['datetime', 'object']).columns.tolist(),
+            help="Select columns containing datetime data"
+        )
+    
+    # Text preprocessing
+    with st.expander("📝 Text Processing", expanded=False):
+        st.subheader("Text Processing")
+        
+        text_cols = st.multiselect(
+            "Select text columns",
+            df.select_dtypes(include=['object']).columns.tolist(),
+            help="Select columns containing text data"
+        )
+        
+        if text_cols:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                remove_punct = st.checkbox("Remove punctuation", value=True)
+                to_lower = st.checkbox("Convert to lowercase", value=True)
+                remove_stopwords = st.checkbox("Remove stopwords", value=True)
+                
+            with col2:
+                lemmatize = st.checkbox("Lemmatize words", value=True)
+                remove_numbers = st.checkbox("Remove numbers", value=True)
+                remove_special = st.checkbox("Remove special characters", value=True)
+    
+    # Feature engineering
+    with st.expander("⚙️ Feature Engineering", expanded=False):
+        st.subheader("Feature Engineering")
+        
+        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        # Convert to sets for difference operation
+        all_cat_cols = set(df.select_dtypes(include=['object', 'category']).columns)
+        text_cols_set = set(text_cols) if text_cols else set()
+        cat_cols = list(all_cat_cols - text_cols_set)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            create_interactions = st.checkbox("Create interaction features", value=True)
+            create_polynomials = st.checkbox("Create polynomial features", value=True)
+            
+        with col2:
+            poly_degree = st.number_input(
+                "Polynomial degree",
+                min_value=2,
+                max_value=5,
+                value=2,
+                step=1
+            )
+            create_stats = st.checkbox("Create statistical features", value=True)
+    
+    # Apply preprocessing
+    if st.button("Apply Preprocessing"):
+        with st.spinner("Processing data..."):
+            try:
+                # Initialize cleaner
+                cleaner = DataCleaner(
+                    drop_duplicates=drop_duplicates,
+                    handle_missing=handle_missing if handle_missing != "None" else None,
+                    outlier_method=outlier_method if outlier_method != "None" else None,
+                    datetime_columns=datetime_cols
+                )
+                
+                # Apply data cleaning
+                df_cleaned = cleaner.fit_transform(df.copy())
+                
+                # Apply text preprocessing if text columns selected
+                if text_cols:
+                    text_preprocessor = TextPreprocessor(
+                        text_columns=text_cols,
+                        remove_punctuation=remove_punct,
+                        to_lowercase=to_lower,
+                        remove_stopwords=remove_stopwords,
+                        lemmatize=lemmatize,
+                        remove_numbers=remove_numbers,
+                        remove_special_chars=remove_special
+                    )
+                    df_cleaned = text_preprocessor.fit_transform(df_cleaned)
+                
+                # Apply feature engineering
+                feature_engineer = FeatureEngineer(
+                    create_interactions=create_interactions,
+                    polynomial_degree=poly_degree,
+                    create_statistical_features=create_stats,
+                    numeric_columns=numeric_cols,
+                    categorical_columns=cat_cols
+                )
+                
+                # Store the processed data in session state
+                st.session_state.processed_df = df_cleaned
+                st.session_state.feature_engineer = feature_engineer
+                
+                st.success("Data preprocessing completed successfully!")
+                
+                # Show processed data preview
+                st.subheader("Processed Data Preview")
+                st.dataframe(df_cleaned.head())
+                
+                # Show data summary
+                st.subheader("Data Summary")
+                st.json({
+                    "Original shape": str(df.shape),
+                    "Processed shape": str(df_cleaned.shape),
+                    "Missing values": int(df_cleaned.isnull().sum().sum()),
+                    "Numeric columns": len(df_cleaned.select_dtypes(include=['number']).columns),
+                    "Categorical columns": len(df_cleaned.select_dtypes(include=['object', 'category']).columns)
+                })
+                
+                # Download button for processed data
+                csv = df_cleaned.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download processed data",
+                    data=csv,
+                    file_name='processed_data.csv',
+                    mime='text/csv'
+                )
+                
+            except Exception as e:
+                st.error(f"Error during preprocessing: {str(e)}")
+                st.exception(e)
+
+# Import the code generation module
+from code_generation import CodeGenerator
+
 # Main tabs
-tab1, tab2, tab3, tab4 = st.tabs(["Data Analysis", "Visualization", "Machine Learning", "Chat"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "Data Analysis", 
+    "Data Preprocessing", 
+    "Visualization", 
+    "Machine Learning", 
+    "Chat",
+    "Code Generation"
+])
 
 with tab1:
-    # Existing data analysis code will go here
-    pass
+    # Data Analysis tab
+    st.header("Data Analysis")
+    if 'df' in st.session_state and st.session_state.df is not None:
+        st.dataframe(st.session_state.df.head())
+        
+        # Basic statistics
+        st.subheader("Basic Statistics")
+        st.write(st.session_state.df.describe())
+        
+        # Data types info
+        st.subheader("Data Types")
+        st.write(st.session_state.df.dtypes)
+    else:
+        st.warning("Please upload a dataset to begin analysis.")
 
 with tab2:
-    # Existing visualization code will go here
-    pass
+    # Data Preprocessing tab
+    if 'df' in st.session_state and st.session_state.df is not None:
+        data_preprocessing_ui(st.session_state.df)
+    else:
+        st.warning("Please upload a dataset to begin preprocessing.")
 
 with tab3:
     # Enhanced ML Interface
@@ -575,88 +767,138 @@ with tab3:
         # Feature engineering
         feature_eng_params = ml_ui.feature_engineering_ui()
         
-        # Preprocess data
-        if st.sidebar.button("Preprocess Data"):
-            with st.spinner("Preprocessing data..."):
-                try:
-                    ml_ui.preprocess_data(
-                        target_col, 
-                        feature_cols, 
-                        test_size, 
-                        random_state,
-                        feature_eng_params
-                    )
-                    st.success("Data preprocessed successfully!")
-                except Exception as e:
-                    st.error(f"Error during preprocessing: {str(e)}")
-        
-        # Model selection and training
-        if hasattr(ml_ui, 'X_train') and ml_ui.X_train is not None:
-            param_grids = ml_ui.model_selection_ui()
-            
-            if st.button("Train and Compare Models"):
-                ml_ui.train_and_compare_models(param_grids if param_grids else None)
-            
-            # Model interpretation
-            if hasattr(ml_ui, 'best_model') and ml_ui.best_model is not None:
-                ml_ui.model_interpretation_ui()
-        
-        # Unsupervised learning
-        ml_ui.unsupervised_learning_ui()
     else:
-        st.warning("Please load a dataset first using the Data Analysis tab.")
+        st.warning("Please upload a dataset to create visualizations.")
 
 with tab4:
-    # Chat interface
-    st.subheader("Chat with your data")
-    user_query = st.text_input("Ask a question or request a data operation:")
-
-if st.button("Send") and user_query:
-    if 'df' not in st.session_state or st.session_state.df is None:
-        st.warning("Please upload a dataset first before asking questions.")
+    # Machine Learning tab
+    st.header("Machine Learning")
+    if 'df' in st.session_state and st.session_state.df is not None:
+        # Initialize MLUI if not already done
+        if 'ml_ui' not in st.session_state:
+            st.session_state.ml_ui = MLUI(st.session_state.df)
+        
+        # Show ML interface
+        st.session_state.ml_ui.select_task()
+        
+        # Get feature engineering parameters
+        feature_eng_params = st.session_state.ml_ui.feature_engineering_ui()
+        
+        # Get model selection and training parameters
+        param_grids = st.session_state.ml_ui.model_selection_ui()
+        
+        # Add a button to train models
+        if st.button("Train Models"):
+            with st.spinner("Training models..."):
+                st.session_state.ml_ui.train_and_compare_models(param_grids)
+        
+        # Show model interpretation if models are trained
+        if hasattr(st.session_state.ml_ui, 'best_model'):
+            st.session_state.ml_ui.model_interpretation_ui()
+            
+            # Add a section for unsupervised learning
+            st.markdown("---")
+            st.session_state.ml_ui.unsupervised_learning_ui()
     else:
-        with st.spinner("Analyzing your question..."):
+        st.warning("Please upload a dataset to use machine learning features.")
+
+with tab5:
+    # Chat interface
+    st.header("Chat with AI Assistant")
+    
+    # Initialize chat history if not exists
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! I'm your AI data assistant. You can ask me to analyze your data, create visualizations, or help with machine learning tasks."}
+        ]
+    
+    # Display chat messages from history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about your data"):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            full_response = ""
+            
             try:
-                # Add user query to chat history
-                st.session_state.chat_history.append(("user", user_query))
+                # Get AI response using the query_agent function
+                if 'df' in st.session_state and st.session_state.df is not None:
+                    try:
+                        # Get context from memory
+                        context = retrieve_context(prompt)
+                        
+                        # Enhance the prompt with context
+                        enhanced_prompt = f"Context from previous conversation:\n{context}\n\nUser's current question: {prompt}"
+                        
+                        # Get response from the AI model
+                        ai_response = query_agent(
+                            prompt=enhanced_prompt,
+                            df=st.session_state.df
+                        )
+                        
+                        # Validate the response
+                        if not ai_response or ai_response.strip() == '':
+                            ai_response = "I'm sorry, I didn't receive a valid response. Please try rephrasing your question."
+                        elif ai_response.startswith('[Error:') or ai_response.startswith('[LLM Error:'):
+                            st.error(f"Error from AI service: {ai_response}")
+                            ai_response = "I encountered an error while processing your request. Please check the error message above and try again."
+                        
+                        # Add to memory if we have a valid response
+                        if not ai_response.startswith('I\'m sorry') and not ai_response.startswith('I encountered'):
+                            add_to_memory(prompt, ai_response)
+                            
+                    except Exception as e:
+                        st.error(f"Error processing your request: {str(e)}")
+                        ai_response = "I'm sorry, I encountered an error while processing your request. Please try again."
+                else:
+                    ai_response = "Please upload a dataset first so I can help you analyze it. You can use the 'Upload Data' tab to get started."
                 
-                # Get the current DataFrame from session state
-                current_df = st.session_state.df
-                
-                # Retrieve relevant context from memory
-                context = retrieve_context(user_query)
-                
-                # Add data context to the prompt
-                data_context = f"""
-                Current Data Summary:
-                - Shape: {current_df.shape}
-                - Columns: {', '.join(current_df.columns)}
-                - First 3 rows: {current_df.head(3).to_dict(orient='records')}
-                """
-                
-                prompt = f"""
-                Context from previous conversations:
-                {context}
-                
-                Current Data:
-                {data_context}
-                
-                User Query: {user_query}
-                """
-                
-                # Get the response from the agent
-                response = query_agent(prompt, df=current_df)
-                
-                # Add the response to chat history
-                st.session_state.chat_history.append(("assistant", response))
-                
-                # Add to memory for future context
-                add_to_memory(user_query, response)
+                # Process the response to handle markdown and code blocks
+                full_response = ai_response
                 
             except Exception as e:
-                error_msg = f"An error occurred while processing your request: {str(e)}"
-                st.error(error_msg)
-                st.session_state.chat_history.append(("assistant", error_msg))
+                st.error(f"An error occurred while generating the response: {str(e)}")
+                full_response = "I'm sorry, I encountered an error while processing your request. Please try again."
+            
+            # Display the response
+            response_placeholder.markdown(full_response)
+            
+            # Extract and display any code blocks in the response
+            code_blocks = extract_code_blocks(full_response)
+            if code_blocks and 'df' in st.session_state and st.session_state.df is not None:
+                for i, code in enumerate(code_blocks):
+                    with st.expander(f"View and Run Code #{i+1}"):
+                        st.code(code, language="python")
+                        
+                        if st.button(f"Run Code #{i+1}", key=f"run_code_{i}"):
+                            try:
+                                # Execute the code in a safe environment
+                                local_vars = {'df': st.session_state.df.copy()}
+                                exec(code, globals(), local_vars)
+                                
+                                # If the code modifies the dataframe, update the session state
+                                if 'df' in local_vars and local_vars['df'] is not None:
+                                    st.session_state.df = local_vars['df']
+                                    st.success("Code executed successfully! The DataFrame has been updated.")
+                                    
+                                    # Rerun to update the UI
+                                    st.rerun()
+                            except Exception as e:
+                                st.error(f"Error executing code: {str(e)}")
+            
+            # Add assistant response to chat history
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 # Display chat history and code execution
 for idx, (role, msg) in enumerate(st.session_state.chat_history):
@@ -665,6 +907,24 @@ for idx, (role, msg) in enumerate(st.session_state.chat_history):
     else:
         st.markdown(f"**Assistant:** {msg}")
         # If LLM response, check for code blocks
+        code_blocks = extract_code_blocks(msg)
+        if code_blocks:
+            for code in code_blocks:
+                with st.expander("View and Run Code"):
+                    st.code(code, language="python")
+                    if st.button("Run Code", key=f"run_{idx}_{hash(code)}"):
+                        try:
+                            # Execute the code in a safe environment
+                            local_vars = {'df': st.session_state.df.copy() if 'df' in st.session_state else None}
+                            exec(code, globals(), local_vars)
+                            
+                            # If the code modifies the dataframe, update the session state
+                            if 'df' in local_vars and local_vars['df'] is not None:
+                                st.session_state.df = local_vars['df']
+                                st.success("DataFrame updated successfully!")
+                        except Exception as e:
+                            st.error(f"Error executing code: {str(e)}")
+                            st.exception(e)
         code_blocks = extract_code_blocks(msg)
         if code_blocks and st.session_state.df is not None:
             for i, code in enumerate(code_blocks):
@@ -965,6 +1225,10 @@ if st.session_state.df is not None:
     if st.button("Get AI Visualization Suggestions"):
         with st.spinner("Analyzing data and generating visualization suggestions..."):
             try:
+                # Initialize response_placeholder at the beginning
+                response_placeholder = st.empty()
+                full_response = ""
+                
                 # Prepare data description for the model
                 data_desc = f"""
                 DataFrame Info:
@@ -999,105 +1263,197 @@ if st.session_state.df is not None:
                 
                 if isinstance(response, dict) and "error" in response:
                     st.error(f"Error generating visualization: {response['error']}")
+                    full_response = f"Error: {response['error']}"
                 elif isinstance(response, str):
-                    # If response is a string, display it as markdown
-                    st.markdown(response)
+                    full_response = response
                     
-                    # Extract and display any code blocks
-                    code_blocks = extract_code_blocks(response)
-                    for i, code in enumerate(code_blocks):
-                        with st.expander(f"View and Run Suggestion #{i+1}"):
-                            st.code(code, language="python")
-                            
-                            if st.button(f"Run Suggestion #{i+1}", key=f"run_suggestion_{i}"):
-                                try:
-                                    # Create a safe environment for code execution with necessary imports
-                                    safe_globals = {
-                                        '__builtins__': {
-                                            'print': print,
-                                            'len': len,
-                                            'str': str,
-                                            'int': int,
-                                            'float': float,
-                                            'list': list,
-                                            'dict': dict,
-                                            'set': set,
-                                            'tuple': tuple,
-                                            'range': range,
-                                            'enumerate': enumerate,
-                                            'zip': zip,
-                                            'sorted': sorted,
-                                            'isinstance': isinstance,
-                                            'type': type,
-                                            'sum': sum,
-                                            'min': min,
-                                            'max': max,
-                                            'abs': abs,
-                                            'round': round,
-                                            'bool': bool
-                                        },
-                                        'pd': pd,
-                                        'np': np,
-                                        'px': px,
-                                        'go': go,
-                                        'plt': plt,
-                                        'df': st.session_state.df.copy()
-                                    }
-                                    
-                                    # Add any other necessary imports
-                                    exec('import pandas as pd', safe_globals)
-                                    exec('import numpy as np', safe_globals)
-                                    exec('import plotly.express as px', safe_globals)
-                                    exec('import plotly.graph_objects as go', safe_globals)
-                                    exec('import matplotlib.pyplot as plt', safe_globals)
-                                    
-                                    # Execute the user's code
+                    # Extract mentioned columns from the response
+                    mentioned_columns = []
+                    for col in st.session_state.df.columns:
+                        if col.lower() in response.lower():
+                            mentioned_columns.append(col)
+                    
+                    # For each mentioned column, add a frequency analysis
+                    for col in mentioned_columns:
+                        if col in st.session_state.df.columns:
+                            try:
+                                # Add a section for the analysis
+                                full_response += f"\n\n### Analysis of '{col}' Distribution"
+                                
+                                # Add frequency table
+                                freq = st.session_state.df[col].value_counts().sort_index()
+                                full_response += f"\n\n**Frequency Table:**\n{freq.to_string()}"
+                                
+                                # Add visualization if it makes sense
+                                if len(freq) > 1 and len(freq) < 20:  # Avoid too many categories
                                     try:
-                                        # First try to compile the code to check for syntax errors
-                                        compiled_code = compile(code, '<string>', 'exec')
-                                        # Then execute it in the safe environment
-                                        exec(compiled_code, safe_globals)
-                                        
-                                        # Try to get the figure from different possible variable names
-                                        fig = None
-                                        for var_name, var_value in safe_globals.items():
-                                            if var_name.startswith('_') or var_name in ['pd', 'np', 'px', 'go', 'plt', 'df']:
-                                                continue
-                                            if isinstance(var_value, (go.Figure, type(px.scatter(pd.DataFrame())))):
-                                                fig = var_value
-                                                break
-                                        
-                                        if fig is not None:
-                                            st.plotly_chart(fig, use_container_width=True)
-                                            st.success("✅ Visualization generated successfully!")
-                                        else:
-                                            # Check if any figures were created with plt
-                                            if 'plt' in safe_globals and hasattr(safe_globals['plt'], 'gcf'):
-                                                fig = safe_globals['plt'].gcf()
-                                                if fig.get_axes():
-                                                    st.pyplot(fig)
-                                                    st.success("✅ Matplotlib visualization generated successfully!")
-                                                else:
-                                                    st.warning("No figure was generated. Make sure the code creates a Plotly or Matplotlib figure.")
-                                            else:
-                                                st.warning("No figure was generated. Make sure the code creates a Plotly or Matplotlib figure.")
-                                                
-                                    except SyntaxError as e:
-                                        st.error(f"Syntax error in the code: {str(e)}")
-                                        st.code(code, language='python')
-                                    except Exception as e:
-                                        st.error(f"Error executing visualization code: {str(e)}")
-                                        st.code(code, language='python')
-                                        
-                                except Exception as e:
-                                    st.error(f"Error setting up the execution environment: {str(e)}")
-                                    st.warning("Please try a different visualization or check your code for errors.")
-                                    st.exception(e)
-                else:
-                    st.warning("Unexpected response format from the AI model.")
+                                        fig = px.bar(
+                                            x=freq.index.astype(str), 
+                                            y=freq.values,
+                                            title=f"Distribution of {col}",
+                                            labels={'x': col, 'y': 'Count'}
+                                        )
+                                        st.plotly_chart(fig, use_container_width=True)
+                                        full_response += "\n\n*Visualization of the distribution is shown above.*"
+                                    except Exception as viz_error:
+                                        st.warning(f"Could not generate visualization for {col}: {str(viz_error)}")
+                                
+                                # Add basic statistics for numeric columns
+                                if pd.api.types.is_numeric_dtype(st.session_state.df[col]):
+                                    try:
+                                        stats = st.session_state.df[col].describe()
+                                        full_response += f"\n\n**Statistics:**\n{stats.to_string()}"
+                                    except Exception as stats_error:
+                                        st.warning(f"Could not generate statistics for {col}: {str(stats_error)}")
+                            except Exception as col_error:
+                                st.warning(f"Error processing column {col}: {str(col_error)}")
                 
+                # Display the response
+                response_placeholder.markdown(full_response)
+                
+                # Add a toggle for showing the code
+                if 'df' in st.session_state and st.session_state.df is not None:
+                    with st.expander("View Analysis Code"):
+                        # Generate the code for the analysis
+                        code = "# Import required libraries\n"
+                        code += "import pandas as pd\n"
+                        code += "import plotly.express as px\n\n"
+                        # Add code for frequency analysis of mentioned columns
+                        for col in mentioned_columns:
+                            if col in st.session_state.df.columns:
+                                code += f"# Frequency analysis for '{col}'\n"
+                                code += f"freq = df['{col}'].value_counts().sort_index()\n"
+                                if pd.api.types.is_numeric_dtype(st.session_state.df[col]):
+                                    code += f"stats = df['{col}'].describe()\n"
+                                    code += f"print(f\"Statistics for {col}:\\n{{stats.to_string()}}\")\n\n"
+                                
+                                code += f"fig = px.bar(x=freq.index.astype(str), y=freq.values, \n                    title='Distribution of {col}',\n                    labels={{'x': '{col}', 'y': 'Count'}})\n"
+                                code += "fig.show()\n\n"
+                        
+                        st.code(code, language='python')
+                        
+                        if st.button("Run This Code"):
+                            try:
+                                # Create a local copy of the dataframe
+                                local_vars = {'df': st.session_state.df.copy()}
+                                
+                                # Execute the code in a safe environment
+                                exec(code, globals(), local_vars)
+                                
+                                # Show success message
+                                st.success("Code executed successfully!")
+                                
+                            except Exception as e:
+                                st.error(f"Error executing code: {str(e)}")
+            
             except Exception as e:
-                st.error(f"Error generating visualization: {str(e)}")
+                st.error(f"An error occurred while generating the response: {str(e)}")
+                st.exception(e)
+                # The code generation and execution has been moved to the main try block
+                # to avoid duplicate code and improve maintainability
+                pass
+            
+            # Extract and display any code blocks in the response
+            code_blocks = extract_code_blocks(full_response)
+            for i, code in enumerate(code_blocks):
+                with st.expander(f"View and Run Suggestion #{i+1}"):
+                    st.code(code, language="python")
+                    
+                    if st.button(f"Run Suggestion #{i+1}", key=f"run_suggestion_{i}"):
+                        try:
+                            # Create a safe environment for code execution with necessary imports
+                            safe_globals = {
+                                '__builtins__': {
+                                    'print': print,
+                                    'len': len,
+                                    'str': str,
+                                    'int': int,
+                                    'float': float,
+                                    'list': list,
+                                    'dict': dict,
+                                    'set': set,
+                                    'tuple': tuple,
+                                    'range': range,
+                                    'enumerate': enumerate,
+                                    'zip': zip,
+                                    'sorted': sorted,
+                                    'isinstance': isinstance,
+                                    'type': type,
+                                    'sum': sum,
+                                    'min': min,
+                                    'max': max,
+                                    'abs': abs,
+                                    'round': round,
+                                    'bool': bool
+                                },
+                                'pd': pd,
+                                'np': np,
+                                'px': px,
+                                'go': go,
+                                'plt': plt,
+                                'df': st.session_state.df.copy()
+                            }
+                            
+                            # Add any other necessary imports
+                            exec('import pandas as pd', safe_globals)
+                            exec('import numpy as np', safe_globals)
+                            exec('import plotly.express as px', safe_globals)
+                            exec('import plotly.graph_objects as go', safe_globals)
+                            exec('import matplotlib.pyplot as plt', safe_globals)
+                            
+                            # Execute the user's code
+                            try:
+                                # First try to compile the code to check for syntax errors
+                                compiled_code = compile(code, '<string>', 'exec')
+                                # Then execute it in the safe environment
+                                exec(compiled_code, safe_globals)
+                            except SyntaxError as se:
+                                st.error(f"Syntax error in the code: {str(se)}")
+                                st.code(f"Error on line {se.lineno}: {se.text}{' ' * (se.offset-1)}^", language='python')
+                                raise
+                            except Exception as e:
+                                st.error(f"Error executing the code: {str(e)}")
+                                st.exception(e)
+                                raise
+                            finally:
+                                # Clean up any resources if needed
+                                pass
+                            
+                            # Try to get the figure from different possible variable names
+                            fig = None
+                            for var_name, var_value in safe_globals.items():
+                                if var_name.startswith('_') or var_name in ['pd', 'np', 'px', 'go', 'plt', 'df']:
+                                    continue
+                                if isinstance(var_value, (go.Figure, type(px.scatter(pd.DataFrame())))):
+                                    fig = var_value
+                                    break
+                            
+                            if fig is not None:
+                                st.plotly_chart(fig, use_container_width=True)
+                                st.success("✅ Visualization generated successfully!")
+                            else:
+                                # Check if any figures were created with plt
+                                if 'plt' in safe_globals and hasattr(safe_globals['plt'], 'gcf'):
+                                    fig = safe_globals['plt'].gcf()
+                                    if fig.get_axes():
+                                        st.pyplot(fig)
+                                        st.success("✅ Matplotlib visualization generated successfully!")
+                                    else:
+                                        st.warning("No figure was generated. Make sure the code creates a Plotly or Matplotlib figure.")
+                                else:
+                                    st.warning("No figure was generated. Make sure the code creates a Plotly or Matplotlib figure.")
+                            
+                        except Exception as e:
+                            st.error(f"Error executing visualization code: {str(e)}")
+                            st.warning("Please try a different visualization or check your code for errors.")
+                            st.code(code, language='python')
+                        else:
+                            st.warning("No code blocks found in the response.")
+                    else:
+                        st.warning("Unexpected response format from the AI model.")
+            
+            # except Exception as e:
+            #     st.error(f"Error generating visualization: {str(e)}")
     
     # ==================== Statistical Analysis ====================
     st.markdown("---")
@@ -1341,7 +1697,6 @@ if st.session_state.df is not None:
                     
                 except Exception as e:
                     st.error(f"Error running logistic regression: {str(e)}")
-    
     # Add a section for custom visualization code
     with st.expander("Advanced: Custom Visualization Code"):
         custom_code = st.text_area("Enter your custom visualization code (using Plotly Express):", 
