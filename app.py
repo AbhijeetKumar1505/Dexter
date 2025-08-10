@@ -956,11 +956,27 @@ if st.session_state.df is not None:
     # Basic data info
     st.sidebar.subheader("Visualization Options")
     
-    # Add a selector for visualization type
+    # Add a selector for visualization type with more chart options
     viz_type = st.sidebar.selectbox(
         "Select Visualization Type",
-        ["Auto-detect", "Scatter Plot", "Line Chart", "Bar Chart", "Histogram", 
-         "Box Plot", "Violin Plot", "Heatmap", "Correlation Matrix", "Geographic Map"]
+        [
+            "Auto-detect", 
+            "Scatter Plot", 
+            "Line Chart", 
+            "Bar Chart", 
+            "Histogram", 
+            "Box Plot", 
+            "Violin Plot", 
+            "Heatmap", 
+            "Correlation Matrix", 
+            "Treemap",
+            "Sunburst",
+            "Parallel Coordinates",
+            "Parallel Categories",
+            "Density Contour",
+            "Geographic Map",
+            "Dashboard View"
+        ]
     )
     
     # Add interactive controls
@@ -969,8 +985,21 @@ if st.session_state.df is not None:
     # Add color and styling options
     color_theme = st.sidebar.selectbox(
         "Color Theme",
-        ["Plotly", "Seaborn", "Plotly Dark", "Plotly White", "Plotly Vivid"]
+        ["Plotly", "Seaborn", "Plotly Dark", "Plotly White", "Plotly Vivid", "D3", "GGPlot2"]
     )
+    
+    # Add chart customization options
+    st.sidebar.subheader("Chart Customization")
+    chart_width = st.sidebar.slider("Chart Width", 400, 1200, 800, 50)
+    chart_height = st.sidebar.slider("Chart Height", 300, 1000, 500, 50)
+    show_legend = st.sidebar.checkbox("Show Legend", value=True)
+    show_grid = st.sidebar.checkbox("Show Grid", value=True)
+    
+    # Animation settings
+    if use_interactivity:
+        st.sidebar.subheader("Animation Settings")
+        animation_speed = st.sidebar.slider("Animation Speed", 100, 2000, 500, 100)
+        transition_duration = st.sidebar.slider("Transition Duration (ms)", 100, 1000, 300, 50)
     
     # Set the color theme
     if color_theme == "Seaborn":
@@ -1053,6 +1082,38 @@ if st.session_state.df is not None:
     # Initialize figure variable
     fig = None
     
+    # Function to apply common figure settings
+    def apply_figure_settings(fig, title=None, x_title=None, y_title=None):
+        if title:
+            fig.update_layout(title=title)
+        if x_title:
+            fig.update_xaxes(title=x_title)
+        if y_title:
+            fig.update_yaxes(title=y_title)
+            
+        fig.update_layout(
+            width=chart_width,
+            height=chart_height,
+            showlegend=show_legend,
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=show_grid, gridcolor='lightgray'),
+            yaxis=dict(showgrid=show_grid, gridcolor='lightgray'),
+            margin=dict(l=50, r=50, t=50, b=50),
+            hovermode='closest'
+        )
+        
+        if use_interactivity and hasattr(fig, 'layout') and hasattr(fig.layout, 'updatemenus'):
+            fig.update_layout(
+                updatemenus=[dict(
+                    type="buttons",
+                    direction="right",
+                    x=0.5,
+                    y=1.1,
+                    showactive=True
+                )]
+            )
+        return fig
+    
     # Chart type selection
     if st.button("Generate Visualization"):
         with st.spinner("Creating visualization..."):
@@ -1067,8 +1128,10 @@ if st.session_state.df is not None:
                                 x=x_axis, 
                                 y=y_axis, 
                                 color=color_by,
-                                hover_data=hover_data, 
-                                title=f"{y_axis} vs {x_axis} by {color_by}"
+                                hover_data=hover_data,
+                                animation_frame=animation_frame,
+                                title=f"{y_axis} vs {x_axis} by {color_by}",
+                                template=color_theme.lower()
                             )
                         else:
                             # Simple scatter plot
@@ -1076,8 +1139,10 @@ if st.session_state.df is not None:
                                 st.session_state.df, 
                                 x=x_axis, 
                                 y=y_axis,
-                                hover_data=hover_data, 
-                                title=f"{y_axis} vs {x_axis}"
+                                hover_data=hover_data,
+                                animation_frame=animation_frame,
+                                title=f"{y_axis} vs {x_axis}",
+                                template=color_theme.lower()
                             )
                     elif x_axis and not y_axis:
                         # Histogram for single numerical column
@@ -1085,7 +1150,9 @@ if st.session_state.df is not None:
                             st.session_state.df, 
                             x=x_axis, 
                             color=color_by,
-                            title=f"Distribution of {x_axis}"
+                            animation_frame=animation_frame,
+                            title=f"Distribution of {x_axis}",
+                            template=color_theme.lower()
                         )
                 
                 # Manual visualization type selection
@@ -1096,8 +1163,122 @@ if st.session_state.df is not None:
                         y=y_axis,
                         color=color_by,
                         hover_data=hover_data,
-                        title=f"Scatter Plot: {y_axis} vs {x_axis}"
+                        animation_frame=animation_frame,
+                        title=f"Scatter Plot: {y_axis} vs {x_axis}",
+                        template=color_theme.lower()
                     )
+                    
+                elif viz_type == "Treemap" and (x_axis or y_axis):
+                    path = [col for col in [x_axis, y_axis, color_by, facet_col] if col]
+                    if len(path) > 1:
+                        fig = px.treemap(
+                            st.session_state.df,
+                            path=path,
+                            values=numeric_cols[0] if numeric_cols else None,
+                            title=f"Treemap of {', '.join(path)}",
+                            template=color_theme.lower()
+                        )
+                    
+                elif viz_type == "Sunburst" and (x_axis or y_axis):
+                    path = [col for col in [x_axis, y_axis, color_by, facet_col] if col]
+                    if len(path) > 1:
+                        fig = px.sunburst(
+                            st.session_state.df,
+                            path=path,
+                            values=numeric_cols[0] if numeric_cols else None,
+                            title=f"Sunburst Chart of {', '.join(path)}",
+                            template=color_theme.lower()
+                        )
+                        
+                elif viz_type == "Parallel Coordinates" and len(numeric_cols) > 1:
+                    dimensions = [{'label': col, 'values': st.session_state.df[col]} for col in numeric_cols[:5]]
+                    fig = go.Figure(data=go.Parcoords(
+                        line=dict(color=st.session_state.df[color_by].astype('category').cat.codes if color_by else None,
+                               colorscale=px.colors.qualitative.Plotly),
+                        dimensions=dimensions
+                    ))
+                    fig.update_layout(title="Parallel Coordinates Plot", template=color_theme.lower())
+                    
+                elif viz_type == "Parallel Categories" and len(categorical_cols) > 1:
+                    dims = [st.session_state.df[col] for col in categorical_cols[:4]]
+                    fig = px.parallel_categories(
+                        st.session_state.df,
+                        dimensions=dims,
+                        color=st.session_state.df[numeric_cols[0]] if numeric_cols else None,
+                        title="Parallel Categories Diagram",
+                        template=color_theme.lower()
+                    )
+                    
+                elif viz_type == "Density Contour" and x_axis and y_axis:
+                    fig = px.density_contour(
+                        st.session_state.df,
+                        x=x_axis,
+                        y=y_axis,
+                        color=color_by,
+                        marginal_x="histogram",
+                        marginal_y="histogram",
+                        title=f"Density Contour: {y_axis} vs {x_axis}",
+                        template=color_theme.lower()
+                    )
+                    
+                elif viz_type == "Dashboard View":
+                    # Create a dashboard with multiple visualizations
+                    st.subheader("Interactive Dashboard")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Histogram
+                        if x_axis:
+                            hist_fig = px.histogram(
+                                st.session_state.df,
+                                x=x_axis,
+                                color=color_by,
+                                title=f"Distribution of {x_axis}",
+                                template=color_theme.lower()
+                            )
+                            st.plotly_chart(hist_fig, use_container_width=True)
+                        
+                        # Box plot
+                        if x_axis and y_axis:
+                            box_fig = px.box(
+                                st.session_state.df,
+                                x=x_axis if x_axis in categorical_cols else y_axis,
+                                y=y_axis if y_axis in numeric_cols else x_axis,
+                                color=color_by,
+                                title=f"Box Plot of {y_axis} by {x_axis}",
+                                template=color_theme.lower()
+                            )
+                            st.plotly_chart(box_fig, use_container_width=True)
+                    
+                    with col2:
+                        # Scatter plot
+                        if x_axis and y_axis:
+                            scatter_fig = px.scatter(
+                                st.session_state.df,
+                                x=x_axis,
+                                y=y_axis,
+                                color=color_by,
+                                hover_data=hover_data,
+                                title=f"{y_axis} vs {x_axis}",
+                                template=color_theme.lower()
+                            )
+                            st.plotly_chart(scatter_fig, use_container_width=True)
+                        
+                        # Pie chart for categorical data
+                        if x_axis and x_axis in categorical_cols:
+                            pie_fig = px.pie(
+                                st.session_state.df,
+                                names=x_axis,
+                                values=numeric_cols[0] if numeric_cols else None,
+                                title=f"Distribution of {x_axis}",
+                                template=color_theme.lower()
+                            )
+                            st.plotly_chart(pie_fig, use_container_width=True)
+                    
+                    st.markdown("---")
+                    st.write("### Data Summary")
+                    st.dataframe(st.session_state.df.describe())
+                    pass  # Skip the rest of the visualization code for dashboard view
                     
                 elif viz_type == "Line Chart" and x_axis and y_axis:
                     fig = px.line(
